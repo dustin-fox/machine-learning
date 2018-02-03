@@ -7,7 +7,7 @@ import sys
 import numpy as np
 from math import *
 
-debug = 1
+debug = 0
 
 ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## 
 #
@@ -164,47 +164,50 @@ def maxAns(data) :
     return max(ansCount, key=lambda key: ansCount[key])
 
 
-# # this is the ID3 algorithm
-# def ID3BuildTree(data, availableFeatures) :
-#     # if data is empty
-#     ???
+# this is the ID3 algorithm
+def ID3BuildTree(data, availableFeatures) :
+    # if data is empty
+    if len(data) == 0:
+        return None
     
-#     # only one label for the Ans feature at this point?
-#     ???
+    # only one label for the Ans feature at this point?
+    if isOneLabel(data, "Ans"):
+        return ["Ans", maxAns(data)]
 
-#     # ran out of discriminating features
-#     ???
+    # ran out of discriminating features
+    if len(availableFeatures) == 0:
+        return ["Ans", maxAns(data)]
 
-#     # pick maximum information gain
-#     else :
-#         bestFeature = None
-#         bestGain = None
-#         for feature in availableFeatures :
-#             g = gain(data, feature)
-#             print("GAIN: ", feature, ":", round(g, 4));
-#             if bestGain == None or g>bestGain :
-#                 bestGain = g
-#                 bestFeature = feature
-#                 bestList = [feature]
-#             elif g==bestGain :
-#                 bestList.append(feature)
-#         print("BEST:", round(bestGain, 4), bestList);
-#         print()
+    # pick maximum information gain
+    else :
+        bestFeature = None
+        bestGain = None
+        for feature in availableFeatures :
+            g = gain(data, feature)
+            print("GAIN: ", feature, ":", round(g, 4));
+            if bestGain == None or g>bestGain :
+                bestGain = g
+                bestFeature = feature
+                bestList = [feature]
+            elif g==bestGain :
+                bestList.append(feature)
+        print("BEST:", round(bestGain, 4), bestList);
+        print()
             
-#         # recursively construct tree on return
-#         treeLeaves = {}   # start with empty dictionary
-#         availableFeatures = availableFeatures[:]
-#         availableFeatures.remove(bestFeature)
-#         for v in FeatureValues[bestFeature] :
-#             treeLeaves[v] = ID3BuildTree(select(data, bestFeature, v), availableFeatures)
-#         return [bestFeature, treeLeaves]    # list of best feature and dictionary of trees
+        # recursively construct tree on return
+        treeLeaves = {}   # start with empty dictionary
+        availableFeatures = availableFeatures[:]
+        availableFeatures.remove(bestFeature)
+        for v in FeatureValues[bestFeature] :
+            treeLeaves[v] = ID3BuildTree(select(data, bestFeature, v), availableFeatures)
+        return [bestFeature, treeLeaves]    # list of best feature and dictionary of trees
 
 
 # do the work
 def main() :
     readProblem()
     FeatureList.remove("Ans")
-    # tree = ID3BuildTree(Data, FeatureList)
-    # printDTree(tree)
+    tree = ID3BuildTree(Data, FeatureList)
+    printDTree(tree)
 
 main()
