@@ -153,10 +153,16 @@ def isOneLabel(data, feature) :
             return None
     return 1
 
-# # select the most popular Ans value left in the data for the constraints
-# # up to now.
-# def maxAns(data) :
-#     ???
+# select the most popular Ans value left in the data for the constraints
+# up to now.
+def maxAns(data) :
+    ansCount = {}
+    for item in FeatureValues["Ans"]:
+        ansCount[item] = 0
+    for item in data:
+        ansCount[item["Ans"]] += 1
+    return max(ansCount, key=lambda key: ansCount[key])
+
 
 # # this is the ID3 algorithm
 # def ID3BuildTree(data, availableFeatures) :
