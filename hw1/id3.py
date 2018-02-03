@@ -116,18 +116,32 @@ def count(data, feature, value) :
 def entropy(data, feature) :
     entropy = 0;
     for value in FeatureValues[feature]:
-        probablility = count(data, feature, value)/len(data)
-        entropy += probablility * np.log2(probablility)
+        probablility = 0
+        num = count(data, feature, value)
+        length = len(data)
+        if num != 0 and length != 0 :
+            probablility = num/length
+            entropy += probablility * np.log2(probablility)
     if debug:
         print("Entropy of "+feature+":")
         print(-entropy)
     return -entropy
 
 
-# # current entropy - expected entropy after getting info about feature 
-# # entropy(data, "Ans") - sum_{v=featurevalues} p_v * entropy(select(data, feature, v), "Ans")
-# def gain(data, feature) :
-#     ???
+# current entropy - expected entropy after getting info about feature 
+# entropy(data, "Ans") - sum_{v=featurevalues} p_v * entropy(select(data, feature, v), "Ans")
+def gain(data, feature) :
+    sumEntropy = 0
+    currentEntropy = entropy(data, "Ans")
+    for value in FeatureValues[feature]:
+        num = count(data, feature, value)
+        length = len(data)
+        if num != 0 and length != 0 :
+            sumEntropy += num/length * entropy(select(data, feature, value), "Ans")
+    if debug:
+        print("Gain from "+feature+":")
+        print(currentEntropy - sumEntropy)
+    return currentEntropy - sumEntropy
 
 
 # If there one and only one value for the given feature in given data 
