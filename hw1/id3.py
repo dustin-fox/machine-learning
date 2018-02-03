@@ -4,7 +4,10 @@
 # ID3 decision tree algorithm
 #
 import sys
+import numpy as np
 from math import *
+
+debug = 1
 
 ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## 
 #
@@ -40,6 +43,13 @@ def readProblem() :
             sample[FeatureList[i]] = fields[i]
         Data.append(sample)
 
+    if debug:
+        print("FeatureList:")
+        print(FeatureList)
+        print("FeatureValues:")
+        print(FeatureValues)
+        print("Data:")
+        print(Data)
 
 
 # write out indented classifier tree
@@ -104,66 +114,77 @@ def count(data, feature, value) :
 # what is the entropy of a question about feature?
 # sum the entropy over the possible values of the feature.
 def entropy(data, feature) :
-    ???
+    entropy = 0;
+    for value in FeatureValues[feature]:
+        probablility = count(data, feature, value)/len(data)
+        entropy += probablility * np.log2(probablility)
+    if debug:
+        print("Entropy of "+feature+":")
+        print(-entropy)
+    return -entropy
 
 
-# current entropy - expected entropy after getting info about feature 
-# entropy(data, "Ans") - sum_{v=featurevalues} p_v * entropy(select(data, feature, v), "Ans")
-def gain(data, feature) :
-    ???
+# # current entropy - expected entropy after getting info about feature 
+# # entropy(data, "Ans") - sum_{v=featurevalues} p_v * entropy(select(data, feature, v), "Ans")
+# def gain(data, feature) :
+#     ???
 
 
 # If there one and only one value for the given feature in given data 
 # If not return None
 def isOneLabel(data, feature) :
-    ???
+    value = data[0][feature]
+    for item in data[1:]:
+        if item[feature] != value:
+            return None
+    return 1
 
-# select the most popular Ans value left in the data for the constraints
-# up to now.
-def maxAns(data) :
-    ???
+# # select the most popular Ans value left in the data for the constraints
+# # up to now.
+# def maxAns(data) :
+#     ???
 
-# this is the ID3 algorithm
-def ID3BuildTree(data, availableFeatures) :
-    # if data is empty
-    ???
+# # this is the ID3 algorithm
+# def ID3BuildTree(data, availableFeatures) :
+#     # if data is empty
+#     ???
     
-    # only one label for the Ans feature at this point?
-    ???
+#     # only one label for the Ans feature at this point?
+#     ???
 
-    # ran out of discriminating features
-    ???
+#     # ran out of discriminating features
+#     ???
 
-    # pick maximum information gain
-    else :
-        bestFeature = None
-        bestGain = None
-        for feature in availableFeatures :
-            g = gain(data, feature)
-            print("GAIN: ", feature, ":", round(g, 4));
-            if bestGain == None or g>bestGain :
-                bestGain = g
-                bestFeature = feature
-                bestList = [feature]
-            elif g==bestGain :
-                bestList.append(feature)
-        print("BEST:", round(bestGain, 4), bestList);
-        print()
+#     # pick maximum information gain
+#     else :
+#         bestFeature = None
+#         bestGain = None
+#         for feature in availableFeatures :
+#             g = gain(data, feature)
+#             print("GAIN: ", feature, ":", round(g, 4));
+#             if bestGain == None or g>bestGain :
+#                 bestGain = g
+#                 bestFeature = feature
+#                 bestList = [feature]
+#             elif g==bestGain :
+#                 bestList.append(feature)
+#         print("BEST:", round(bestGain, 4), bestList);
+#         print()
             
-        # recursively construct tree on return
-        treeLeaves = {}   # start with empty dictionary
-        availableFeatures = availableFeatures[:]
-        availableFeatures.remove(bestFeature)
-        for v in FeatureValues[bestFeature] :
-            treeLeaves[v] = ID3BuildTree(select(data, bestFeature, v), availableFeatures)
-        return [bestFeature, treeLeaves]    # list of best feature and dictionary of trees
+#         # recursively construct tree on return
+#         treeLeaves = {}   # start with empty dictionary
+#         availableFeatures = availableFeatures[:]
+#         availableFeatures.remove(bestFeature)
+#         for v in FeatureValues[bestFeature] :
+#             treeLeaves[v] = ID3BuildTree(select(data, bestFeature, v), availableFeatures)
+#         return [bestFeature, treeLeaves]    # list of best feature and dictionary of trees
 
 
 # do the work
 def main() :
     readProblem()
     FeatureList.remove("Ans")
-    tree = ID3BuildTree(Data, FeatureList)
-    printDTree(tree)
+    # tree = ID3BuildTree(Data, FeatureList)
+    # printDTree(tree)
 
 main()
