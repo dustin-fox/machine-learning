@@ -43,7 +43,7 @@ def readProblem() :
             sample[FeatureList[i]] = fields[i]
         Data.append(sample)
 
-    if debug:
+    if debug :
         print("FeatureList:")
         print(FeatureList)
         print("FeatureValues:")
@@ -55,7 +55,7 @@ def readProblem() :
 # write out indented classifier tree
 amountIndent = 3*" "
 
-def printDTree(tree):
+def printDTree(tree) :
     printDTreeAux("", tree)
     
 def printDTreeAux(indent, tree) :
@@ -74,7 +74,7 @@ def printDTreeAux(indent, tree) :
 # Decision Tree:  list either [Feature, Value] or [Feature, dictionary of value:tree]
 # Author: Robert B. Heckendorn, University of Idaho
 # 
-# The OUTPUT:
+# The OUTPUT :
 #
 # ["Ans", "Yes"]
 # or 
@@ -115,14 +115,14 @@ def count(data, feature, value) :
 # sum the entropy over the possible values of the feature.
 def entropy(data, feature) :
     entropy = 0;
-    for value in FeatureValues[feature]:
+    for value in FeatureValues[feature] :
         probablility = 0
         num = count(data, feature, value)
         length = len(data)
         if num != 0 and length != 0 :
             probablility = num/length
             entropy += probablility * np.log2(probablility)
-    if debug:
+    if debug :
         print("Entropy of "+feature+":")
         print(-entropy)
     return -entropy
@@ -133,12 +133,12 @@ def entropy(data, feature) :
 def gain(data, feature) :
     sumEntropy = 0
     currentEntropy = entropy(data, "Ans")
-    for value in FeatureValues[feature]:
+    for value in FeatureValues[feature] :
         num = count(data, feature, value)
         length = len(data)
         if num != 0 and length != 0 :
             sumEntropy += num/length * entropy(select(data, feature, value), "Ans")
-    if debug:
+    if debug :
         print("Gain from "+feature+":")
         print(currentEntropy - sumEntropy)
     return currentEntropy - sumEntropy
@@ -148,8 +148,8 @@ def gain(data, feature) :
 # If not return None
 def isOneLabel(data, feature) :
     value = data[0][feature]
-    for item in data[1:]:
-        if item[feature] != value:
+    for item in data[1:] :
+        if item[feature] != value :
             return None
     return 1
 
@@ -157,9 +157,9 @@ def isOneLabel(data, feature) :
 # up to now.
 def maxAns(data) :
     ansCount = {}
-    for item in FeatureValues["Ans"]:
+    for item in FeatureValues["Ans"] :
         ansCount[item] = 0
-    for item in data:
+    for item in data :
         ansCount[item["Ans"]] += 1
     return max(ansCount, key=lambda key: ansCount[key])
 
@@ -167,29 +167,32 @@ def maxAns(data) :
 # this is the ID3 algorithm
 def ID3BuildTree(data, availableFeatures) :
     # if data is empty
-    if len(data) == 0:
-        return None
+    if len(data) == 0 :
+        return ["Ans", "None"]
     
     # only one label for the Ans feature at this point?
-    if isOneLabel(data, "Ans"):
+    if isOneLabel(data, "Ans") :
         return ["Ans", maxAns(data)]
 
     # ran out of discriminating features
-    if len(availableFeatures) == 0:
+    if len(availableFeatures) == 0 :
+        print("***  out of features ***")
         return ["Ans", maxAns(data)]
 
     # pick maximum information gain
     else :
+        Epsilon = 1E-10
         bestFeature = None
         bestGain = None
         for feature in availableFeatures :
             g = gain(data, feature)
             print("GAIN: ", feature, ":", round(g, 4));
-            if bestGain == None or g>bestGain :
+            # check if g is atleast Epsilon bigger than bestGain
+            if bestGain == None or g>bestGain + Epsilon :
                 bestGain = g
                 bestFeature = feature
                 bestList = [feature]
-            elif g==bestGain :
+            elif abs(g - bestGain) < Epsilon :
                 bestList.append(feature)
         print("BEST:", round(bestGain, 4), bestList);
         print()
