@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-# Author: Dr. Robert Heckendorn, Computer Science Department, University of Idaho, 2016
+# Author: Dr. Robert Heckendorn
+# Computer Science Department
+# University of Idaho
+# 2017
 #
 # ID3 decision tree algorithm
 #
 import sys
-import numpy as np
 from math import *
-
-debug = 0
+from optparse import OptionParser
+EPSILON = 1E-10
+DEBUG = 0
 
 ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## ## 
 #
@@ -43,7 +46,7 @@ def readProblem() :
             sample[FeatureList[i]] = fields[i]
         Data.append(sample)
 
-    if debug :
+    if DEBUG :
         print("FeatureList:")
         print(FeatureList)
         print("FeatureValues:")
@@ -121,8 +124,8 @@ def entropy(data, feature) :
         length = len(data)
         if num != 0 and length != 0 :
             probablility = num/length
-            entropy += probablility * np.log2(probablility)
-    if debug :
+            entropy += probablility * math.log2(probablility)
+    if DEBUG :
         print("Entropy of "+feature+":")
         print(-entropy)
     return -entropy
@@ -138,7 +141,7 @@ def gain(data, feature) :
         length = len(data)
         if num != 0 and length != 0 :
             sumEntropy += num/length * entropy(select(data, feature, value), "Ans")
-    if debug :
+    if DEBUG :
         print("Gain from "+feature+":")
         print(currentEntropy - sumEntropy)
     return currentEntropy - sumEntropy
@@ -151,7 +154,7 @@ def isOneLabel(data, feature) :
     for item in data[1:] :
         if item[feature] != value :
             return None
-    return 1
+    return value
 
 # select the most popular Ans value left in the data for the constraints
 # up to now.
@@ -181,14 +184,13 @@ def ID3BuildTree(data, availableFeatures) :
 
     # pick maximum information gain
     else :
-        Epsilon = 1E-10
         bestFeature = None
         bestGain = None
         for feature in availableFeatures :
             g = gain(data, feature)
             print("GAIN: ", feature, ":", round(g, 4));
             # check if g is atleast Epsilon bigger than bestGain
-            if bestGain == None or g>bestGain + Epsilon :
+            if bestGain == None or g > bestGain + EPSILON :
                 bestGain = g
                 bestFeature = feature
                 bestList = [feature]
@@ -201,16 +203,62 @@ def ID3BuildTree(data, availableFeatures) :
         treeLeaves = {}   # start with empty dictionary
         availableFeatures = availableFeatures[:]
         availableFeatures.remove(bestFeature)
+ 
+        ??? something IN this loop to not build a subtree if data is empty for any feature value
         for v in FeatureValues[bestFeature] :
-            treeLeaves[v] = ID3BuildTree(select(data, bestFeature, v), availableFeatures)
+            treeLeaves[v] = ID3BuildTree(select(data, bestFeature, v), availableFeatures)  # recurse
+                
         return [bestFeature, treeLeaves]    # list of best feature and dictionary of trees
 
+# read the tree data structure from the treeFile
+def getTree(treeFile) :
+    try :
+        inn = open(treeFile, "r")
+        treeTxt = inn.readline()
+        inn.close()
+        return eval(treeTxt)
+    except :
+        print("ERROR: unable to open", treeFile)
+        return None
 
-# do the work
+# use the tree data structure to compute an Ans for each data line
+def ID3DecodeTree(tree, data) :
+    for d in data :
+        printDataLine(FeatureList, d)
+        dtAns = getAns(tree, d)         # here is where we compute the Ans from tree
+        print(dtAns, end=" ")
+        if d["Ans"]==dtAns : print("Equal")
+        else : print("NotEqual")
+        
+# print the data line only with no newline
+def printDataLine(features, d) :
+    for f in features :
+        print(f + ":" + d[f], end="   ")
+
+def getAns(tree, d) :
+    ??? Hint: you can test the type of the thing in a variable something like: type(subtrees) is str 
+
 def main() :
+    # parse the command line args
+    parser = OptionParser()                             
+    parser.add_option("-t", "--tree", dest="treeFile",
+                      help = "The decision tree")
+    (options, args) = parser.parse_args()                
+    treeFile = options.treeFile
+
+    # read the problem
     readProblem()
-    FeatureList.remove("Ans")
-    tree = ID3BuildTree(Data, FeatureList)
-    printDTree(tree)
+
+    # if -t option then use tree data structure otherwise compute tree data structure
+    if options.treeFile :
+        tree = getTree(options.treeFile)
+        if tree :
+            ID3DecodeTree(tree, Data)
+    else :
+        FeatureList.remove("Ans")
+        tree = ID3BuildTree(Data, FeatureList)
+        printDTree(tree)
+        print(tree)
+
 
 main()
