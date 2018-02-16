@@ -124,7 +124,7 @@ def entropy(data, feature) :
         length = len(data)
         if num != 0 and length != 0 :
             probablility = num/length
-            entropy += probablility * math.log2(probablility)
+            entropy += probablility * log2(probablility)
     if DEBUG :
         print("Entropy of "+feature+":")
         print(-entropy)
@@ -169,10 +169,6 @@ def maxAns(data) :
 
 # this is the ID3 algorithm
 def ID3BuildTree(data, availableFeatures) :
-    # if data is empty
-    if len(data) == 0 :
-        return ["Ans", "None"]
-    
     # only one label for the Ans feature at this point?
     if isOneLabel(data, "Ans") :
         return ["Ans", maxAns(data)]
@@ -189,12 +185,12 @@ def ID3BuildTree(data, availableFeatures) :
         for feature in availableFeatures :
             g = gain(data, feature)
             print("GAIN: ", feature, ":", round(g, 4));
-            # check if g is atleast Epsilon bigger than bestGain
+            # check if g is atleast EPSILON bigger than bestGain
             if bestGain == None or g > bestGain + EPSILON :
                 bestGain = g
                 bestFeature = feature
                 bestList = [feature]
-            elif abs(g - bestGain) < Epsilon :
+            elif abs(g - bestGain) < EPSILON :
                 bestList.append(feature)
         print("BEST:", round(bestGain, 4), bestList);
         print()
@@ -204,10 +200,12 @@ def ID3BuildTree(data, availableFeatures) :
         availableFeatures = availableFeatures[:]
         availableFeatures.remove(bestFeature)
  
-        ??? something IN this loop to not build a subtree if data is empty for any feature value
         for v in FeatureValues[bestFeature] :
-            treeLeaves[v] = ID3BuildTree(select(data, bestFeature, v), availableFeatures)  # recurse
-                
+            selection = select(data, bestFeature, v)
+            if len(selection) == 0 :
+                treeLeaves[v] = ["Ans", maxAns(data)]
+            else :
+                treeLeaves[v] = ID3BuildTree(selection, availableFeatures)  # recurse   
         return [bestFeature, treeLeaves]    # list of best feature and dictionary of trees
 
 # read the tree data structure from the treeFile
@@ -236,8 +234,15 @@ def printDataLine(features, d) :
         print(f + ":" + d[f], end="   ")
 
 def getAns(tree, d) :
-    ??? Hint: you can test the type of the thing in a variable something like: type(subtrees) is str 
+    if tree[0] == 'Ans' :
+        return tree[1]
+    elif tree[0] in d :
+        return getAns(tree[1][d[tree[0]]], d)
+    else :
+        return "None"
 
+
+# do the work
 def main() :
     # parse the command line args
     parser = OptionParser()                             
