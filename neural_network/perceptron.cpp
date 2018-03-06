@@ -1,4 +1,7 @@
 #include "perceptron.h"
+#include <iostream>
+
+using namespace std;
 
 Perceptron::Perceptron(int features, int neurons) {
     numFeatures = features;
@@ -17,17 +20,24 @@ static double threshold(double x) {
         return 0.0;
 }
 
-void Perceptron::train(Matrix *inputs, Matrix *expected) {
+void Perceptron::train(Matrix *inputs, Matrix *expected, float learningRate, int trainingIterations) {
     // validate that the inputs is the right size according to numFeatures and numNeurons
     // scale data to be between 0 and 1
     inputs->normalizeCols();
-    inputs->print();
-    weights->print();
     // calculate activations
-    Matrix *activations = new Matrix(inputs->dot(weights));
-    activations->print();
-    // apply the threshold function to the activations
-    activations->map(threshold);
-    activations->print();
+    for (int i = 0; i < trainingIterations; i++) {
+        Matrix *activations = new Matrix(inputs->dot(weights));
+        // apply the threshold function to the activations
+        activations->map(threshold);
+        // alter weights
+        weights->sub((Matrix(inputs->Tdot(activations->sub(expected)))).scalarMult(learningRate));
+    }
+}
 
+void Perceptron::recall(Matrix *inputs) {
+    Matrix *activations = new Matrix(inputs->dot(weights));
+    activations->map(threshold);
+    cout << "The Answers:\n";
+    inputs->print();
+    activations->print();
 }

@@ -10,8 +10,6 @@ void getData(Matrix *&data, Matrix *&answers, int inputNum, int rows, int column
 int main(int argc, const char *argv[]) {
     Matrix *data = NULL;
     Matrix *answers = NULL;
-    Matrix *test = NULL;
-    Matrix *temp = NULL;
     int inputNum = 0;
     int rows = 0;
     int columns = 0;
@@ -23,13 +21,14 @@ int main(int argc, const char *argv[]) {
     data->print();
     answers->print();
     // Train
-    perceptron.train(data, answers);
+    perceptron.train(data, answers, 0.3, 100);
+    perceptron.recall(data);
 }
 
 void getData(Matrix *&data, Matrix *&answers, int inputNum, int rows, int columns) {
     data = new Matrix(rows, inputNum + 1, "inputData"); // +1 for bias column
     answers = new Matrix(rows, columns - inputNum, "expectedResults");
-    data->constant(1.0);
+    data->constant(-1.0);
     answers->constant(0.0);
     double temp = 0.0;
     for (int r = 0; r < rows; r++) {
