@@ -5,25 +5,32 @@
 
 using namespace std;
 
-void getData(Matrix *&data, Matrix *&answers);
+void getData(Matrix *&data, Matrix *&answers, int inputNum, int rows, int columns);
 
 int main(int argc, const char *argv[]) {
     Matrix *data = NULL;
     Matrix *answers = NULL;
-    getData(data, answers);
-    data->print();
-    answers->print();
-}
-
-void getData(Matrix *&data, Matrix *&answers) {
+    Matrix *test = NULL;
+    Matrix *temp = NULL;
     int inputNum = 0;
     int rows = 0;
     int columns = 0;
     cin >> inputNum >> rows >> columns;
-    data = new Matrix(rows, inputNum, "inputData");
+    // Create Perceptron
+    Perceptron perceptron(inputNum, columns - inputNum);
+    getData(data, answers, inputNum, rows, columns);
+    // Debug
+    data->print();
+    answers->print();
+    // Train
+    perceptron.train(data, answers);
+}
+
+void getData(Matrix *&data, Matrix *&answers, int inputNum, int rows, int columns) {
+    data = new Matrix(rows, inputNum + 1, "inputData"); // +1 for bias column
     answers = new Matrix(rows, columns - inputNum, "expectedResults");
-    data->constant(0);
-    answers->constant(0);
+    data->constant(1.0);
+    answers->constant(0.0);
     double temp = 0.0;
     for (int r = 0; r < rows; r++) {
         for (int c = 0; c < columns; c++) {

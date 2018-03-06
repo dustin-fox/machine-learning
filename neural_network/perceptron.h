@@ -7,12 +7,12 @@
 
 #include "lib/mat.h"
 
-#define RANDOM_RANGE 100
+#define RANDOM_RANGE 1
 
 class Perceptron {
   public:
     Perceptron(int n, int m);
-    ~Perceptron();
+    // ~Perceptron();
     void train(Matrix *inputs, Matrix *expected);
 
   private:
