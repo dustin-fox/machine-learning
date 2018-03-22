@@ -5,27 +5,29 @@
 
 using namespace std;
 
-void getData(Matrix *&data, Matrix *&answers, int inputNum, int rows, int columns);
+void getTrainingData(Matrix *&data, Matrix *&answers, int inputNum, int rows, int columns);
+void getTestData(Matrix *&data, int rows, int columns);
 
 int main(int argc, const char *argv[]) {
-    Matrix *data = NULL;
-    Matrix *answers = NULL;
+    Matrix *trainingData = NULL;
+    Matrix *trainingAnswers = NULL;
+    Matrix *testData = NULL;
     int inputNum = 0;
     int rows = 0;
     int columns = 0;
     cin >> inputNum >> rows >> columns;
     // Create Perceptron
     Perceptron perceptron(inputNum, columns - inputNum);
-    getData(data, answers, inputNum, rows, columns);
-    // Debug
-    data->print();
-    answers->print();
+    getTrainingData(trainingData, trainingAnswers, inputNum, rows, columns);
     // Train
-    perceptron.train(data, answers, 0.3, 100);
-    perceptron.recall(data);
+    perceptron.train(trainingData, trainingAnswers, 0.1, 1000);
+    // Recall
+    cin >> rows >> columns;
+    getTestData(testData, rows, columns);
+    perceptron.recall(testData);
 }
 
-void getData(Matrix *&data, Matrix *&answers, int inputNum, int rows, int columns) {
+void getTrainingData(Matrix *&data, Matrix *&answers, int inputNum, int rows, int columns) {
     data = new Matrix(rows, inputNum + 1, "inputData"); // +1 for bias column
     answers = new Matrix(rows, columns - inputNum, "expectedResults");
     data->constant(-1.0);
@@ -36,13 +38,22 @@ void getData(Matrix *&data, Matrix *&answers, int inputNum, int rows, int column
             if (c >= inputNum) {
                 cin >> temp;
                 answers->set(r, c - inputNum, temp);
-                cout << "ans";
             } else {
                 cin >> temp;
                 data->set(r, c, temp);
-                cout << "dat";
             }
-            cout << "setting " << r << c << " to" << temp << endl;
+        }
+    }
+}
+
+void getTestData(Matrix *&data, int rows, int columns) {
+    data = new Matrix(rows, columns + 1, "inputData"); // +1 for bias column
+    data->constant(-1.0);
+    double temp = 0.0;
+    for (int r = 0; r < rows; r++) {
+        for (int c = 0; c < columns; c++) {
+            cin >> temp;
+            data->set(r, c, temp);
         }
     }
 }

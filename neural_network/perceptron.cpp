@@ -9,7 +9,8 @@ Perceptron::Perceptron(int features, int neurons) {
     weights = new Matrix(numFeatures + 1, numNeurons, "weightVector");
     weights->constant(0.0);
     initRand();
-    weights->rand(-1.0, 1.0);
+    weights->rand(-RANDOM_RANGE, RANDOM_RANGE);
+    weights->print();
 }
 
 // Threashold function
@@ -20,24 +21,42 @@ static double threshold(double x) {
         return 0.0;
 }
 
-void Perceptron::train(Matrix *inputs, Matrix *expected, float learningRate, int trainingIterations) {
+void Perceptron::train(Matrix *inputs, Matrix *expected, double learningRate, int trainingIterations) {
     // validate that the inputs is the right size according to numFeatures and numNeurons
     // scale data to be between 0 and 1
-    inputs->normalizeCols();
+    Matrix *inputsNorm = new Matrix(inputs);
+    inputsNorm->normalizeCols();
     // calculate activations
     for (int i = 0; i < trainingIterations; i++) {
-        Matrix *activations = new Matrix(inputs->dot(weights));
+        Matrix *activations = new Matrix(inputsNorm->dot(weights));
         // apply the threshold function to the activations
         activations->map(threshold);
         // alter weights
-        weights->sub((Matrix(inputs->Tdot(activations->sub(expected)))).scalarMult(learningRate));
+        weights->sub((Matrix(inputsNorm->Tdot(activations->sub(expected)))).scalarMult(learningRate));
     }
 }
 
 void Perceptron::recall(Matrix *inputs) {
-    Matrix *activations = new Matrix(inputs->dot(weights));
+    Matrix *inputsNorm = new Matrix(inputs);
+    inputsNorm->normalizeCols();
+    Matrix *activations = new Matrix(inputsNorm->dot(weights));
     activations->map(threshold);
-    cout << "The Answers:\n";
-    inputs->print();
-    activations->print();
+    print(inputs, activations);
+}
+
+void Perceptron::print(Matrix *inputs, Matrix *outputs) {
+    int inputCols = inputs->numCols() - 1;
+    int outputCols = outputs->numCols();
+    int totalCols = inputCols + outputCols;
+    weights->print();
+    for (int r = 0; r < inputs->numRows(); r++) {
+        for (int c = 0; c < totalCols; c++) {
+            if (c < inputCols) {
+                printf("%.2f ", inputs->get(r, c));
+            } else {
+                printf("%.2f ", outputs->get(r, c - inputCols));
+            }
+        }
+        printf("\n");
+    }
 }
