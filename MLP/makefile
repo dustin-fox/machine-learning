@@ -1,11 +1,33 @@
-CC=g++
-OPTS=-g -Wall -std=c++11
-BIN=nn
-SOURCES=main.cpp lib/mat.cpp lib/randmt.cpp perceptron.cpp
-OBJECTS=$(SOURCES:.cpp=.o)
-$(BIN) : $(OBJECTS)
-	$(CC) $(OPTS) $^ -o $@
-$(OBJECTS): %.o : %.cpp
-	$(CC) -c $(OPTS) $^ -o $@
+BIN = nn
+
+CXX=g++
+SHELL=/bin/sh
+
+CPPFLAGS=-O3 -Wall
+CFLAGS=$(CPPFLAGS)
+LIBS = -lm
+
+SRCS=\
+nn.cpp\
+perceptron.cpp\
+mat.cpp\
+randf.cpp
+
+HDRS=\
+perceptron.h\
+lib/mat.h\
+lib/rand.h
+
+OBJS=\
+perceptron.o\
+lib/mat.o\
+lib/rand.o
+
+$(BIN): $(OBJS) $(BIN).o
+	$(CXX)  $(CFLAGS) $(OBJS) $(BIN).o $(LIBS) -o $(BIN)
+
+$(BIN)oneof: $(OBJS) $(BIN)oneof.o
+	$(CXX)  $(CFLAGS) $(OBJS) $(BIN)oneof.o $(LIBS) -o $(BIN)oneof
+
 clean:
-	rm $(OBJECTS) $(BIN)
+	/bin/rm -f *.o a.out $(BIN) $(BIN)oneof
