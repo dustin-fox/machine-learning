@@ -11,7 +11,9 @@ static double sigmoid(double x) {
     return 1.0 / (1.0 + exp(-4.0 * x));
 }
 
-// Threashold function
+/**
+ * @brief      Threshold function
+ */
 static double threshold(double x) {
     if (x > 0.5)
         return 1.0;
@@ -22,7 +24,7 @@ static double threshold(double x) {
 /**
  * @brief      Constructs a Perceptron
  *
- * @param[in]  features  The number of inputs to the perceptron
+ * @param[in]  features  The number of inputs
  * @param[in]  neurons   The number of outputs
  */
 Perceptron::Perceptron(int numFeatures, int numNeurons) {
@@ -66,6 +68,13 @@ Matrix Perceptron::hidden_activation(Matrix inputs) {
     return add_bias(output_activation(inputs));
 }
 
+/**
+ * @brief      Creates a copy of the matrix with a bias column
+ *
+ * @param[in]  matrix  The matrix
+ *
+ * @return     { description_of_the_return_value }
+ */
 Matrix Perceptron::add_bias(Matrix matrix) {
     Matrix newMatrix = Matrix(matrix.numRows(), matrix.numCols() + 1, "hidden_activation");
     newMatrix.constant(-1.0);
@@ -98,21 +107,4 @@ void Perceptron::hidden_update_weights(Matrix hiddenError, Matrix inputs, float 
     int cols = hiddenError.maxCols();
     hiddenError.narrow(cols - 1);
     weights->add((inputs.Tdot(hiddenError)).scalarMult(learningRate));
-}
-
-void Perceptron::print(Matrix inputs, Matrix outputs) {
-    int inputCols = inputs.numCols() - 1;
-    int outputCols = outputs.numCols();
-    int totalCols = inputCols + outputCols;
-    weights->print();
-    for (int r = 0; r < inputs.numRows(); r++) {
-        for (int c = 0; c < totalCols; c++) {
-            if (c < inputCols) {
-                printf("%.2f ", inputs.get(r, c));
-            } else {
-                printf("%.2f ", outputs.get(r, c - inputCols));
-            }
-        }
-        printf("\n");
-    }
 }

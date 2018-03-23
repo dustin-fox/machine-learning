@@ -5,8 +5,9 @@
 
 using namespace std;
 
-void getTrainingData(Matrix *&data, Matrix *&answers, int inputNum, int rows, int columns);
-void getTestData(Matrix *&data, int rows, int columns);
+void get_training_data(Matrix *&data, Matrix *&answers, int inputNum, int rows, int columns);
+void get_test_data(Matrix *&data, int rows, int columns);
+void print_results(Matrix inputs, Matrix outputs);
 
 int main(int argc, const char *argv[]) {
     Matrix *trainingData = NULL;
@@ -20,9 +21,9 @@ int main(int argc, const char *argv[]) {
     // Create Perceptrons
     Perceptron hiddenLayer(inputNum, hiddenNodes);
     Perceptron outputLayer(hiddenNodes, columns - inputNum);
-    getTrainingData(trainingData, trainingAnswers, inputNum, rows, columns);
+    get_training_data(trainingData, trainingAnswers, inputNum, rows, columns);
     // Train
-    int trainingIterations = 1000;
+    int trainingIterations = 10000;
     float learningRate = 0.1;
     Matrix hiddenActivation;
     Matrix outputActivation;
@@ -38,13 +39,13 @@ int main(int argc, const char *argv[]) {
     }
     // Recall
     cin >> rows >> columns;
-    getTestData(testData, rows, columns);
+    get_test_data(testData, rows, columns);
     hiddenActivation = hiddenLayer.hidden_activation(testData);
     outputActivation = outputLayer.output_activation_threshold(hiddenActivation);
-    outputActivation.print();
+    print_results(testData, outputActivation);
 }
 
-void getTrainingData(Matrix *&data, Matrix *&answers, int inputNum, int rows, int columns) {
+void get_training_data(Matrix *&data, Matrix *&answers, int inputNum, int rows, int columns) {
     data = new Matrix(rows, inputNum + 1, "inputData"); // +1 for bias column
     answers = new Matrix(rows, columns - inputNum, "expectedResults");
     data->constant(-1.0);
@@ -63,7 +64,7 @@ void getTrainingData(Matrix *&data, Matrix *&answers, int inputNum, int rows, in
     }
 }
 
-void getTestData(Matrix *&data, int rows, int columns) {
+void get_test_data(Matrix *&data, int rows, int columns) {
     data = new Matrix(rows, columns + 1, "inputData"); // +1 for bias column
     data->constant(-1.0);
     double temp = 0.0;
@@ -72,5 +73,21 @@ void getTestData(Matrix *&data, int rows, int columns) {
             cin >> temp;
             data->set(r, c, temp);
         }
+    }
+}
+
+void print_results(Matrix inputs, Matrix outputs) {
+    int inputCols = inputs.numCols() - 1;
+    int outputCols = outputs.numCols();
+    int totalCols = inputCols + outputCols;
+    for (int r = 0; r < inputs.numRows(); r++) {
+        for (int c = 0; c < totalCols; c++) {
+            if (c < inputCols) {
+                printf("%.2f ", inputs.get(r, c));
+            } else {
+                printf("%.2f ", outputs.get(r, c - inputCols));
+            }
+        }
+        printf("\n");
     }
 }
