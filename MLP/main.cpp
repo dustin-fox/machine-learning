@@ -22,7 +22,7 @@ int main(int argc, const char *argv[]) {
     Perceptron outputLayer(hiddenNodes, columns - inputNum);
     getTrainingData(trainingData, trainingAnswers, inputNum, rows, columns);
     // Train
-    int trainingIterations = 1;
+    int trainingIterations = 1000;
     float learningRate = 0.1;
     Matrix hiddenActivation;
     Matrix outputActivation;
@@ -31,12 +31,17 @@ int main(int argc, const char *argv[]) {
     for (int i = 0; i < trainingIterations; i++) {
         hiddenActivation = hiddenLayer.hidden_activation(trainingData);
         outputActivation = outputLayer.output_activation(hiddenActivation);
-        outputActivation.print();
+        outputError = outputLayer.output_error(outputActivation, trainingAnswers);
+        hiddenError = hiddenLayer.hidden_error(hiddenActivation, outputError, outputLayer.get_weights());
+        hiddenLayer.hidden_update_weights(hiddenError, trainingData, learningRate);
+        outputLayer.output_update_weights(outputError, hiddenActivation, learningRate);
     }
     // Recall
     cin >> rows >> columns;
     getTestData(testData, rows, columns);
-    // perceptron.recall(testData);
+    hiddenActivation = hiddenLayer.hidden_activation(testData);
+    outputActivation = outputLayer.output_activation_threshold(hiddenActivation);
+    outputActivation.print();
 }
 
 void getTrainingData(Matrix *&data, Matrix *&answers, int inputNum, int rows, int columns) {

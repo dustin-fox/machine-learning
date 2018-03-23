@@ -11,6 +11,14 @@ static double sigmoid(double x) {
     return 1.0 / (1.0 + exp(-4.0 * x));
 }
 
+// Threashold function
+static double threshold(double x) {
+    if (x > 0.5)
+        return 1.0;
+    else
+        return 0.0;
+}
+
 /**
  * @brief      Constructs a Perceptron
  *
@@ -25,6 +33,10 @@ Perceptron::Perceptron(int numFeatures, int numNeurons) {
     weights->rand(-RANDOM_RANGE, RANDOM_RANGE);
 }
 
+Matrix Perceptron::get_weights() {
+    return *weights;
+}
+
 /**
  * @brief      Calculate the activations of the perceptron
  *
@@ -37,6 +49,10 @@ Matrix Perceptron::output_activation(Matrix inputs) {
     activations.map(sigmoid);
     // add bias layer
     return activations;
+}
+
+Matrix Perceptron::output_activation_threshold(Matrix inputs) {
+    return output_activation(inputs).map(threshold);
 }
 
 /**
@@ -55,53 +71,34 @@ Matrix Perceptron::add_bias(Matrix matrix) {
     newMatrix.constant(-1.0);
     for (int rows = 0; rows < matrix.numRows(); rows++) {
         for (int cols = 0; cols < matrix.numCols(); cols++) {
-            newMatrix.set(rows, cols + 1, matrix.get(rows, cols));
+            newMatrix.set(rows, cols, matrix.get(rows, cols));
         }
     }
     return newMatrix;
 }
 
-// Matrix Perceptron::output_error(Matrix activations, Matrix targets){
-//     Matrix oneMatrix = new Matrix(activations.rows(), activations.cols());
-//     oneMatrix.constant(1.0);
-    // Matrix * error = new Matrix(targets.sub(activations).mult(activations).mult(oneMatrix.sub(activations)));
-// }
+Matrix Perceptron::output_error(Matrix activations, Matrix targets) {
+    return (Matrix(targets).sub(activations))
+           .mult(activations)
+           .mult(Matrix(activations).scalarPreSub(1.0));
+}
 
-// Matrix *Perceptron::hidden_error(Matrix *error){
+Matrix Perceptron::hidden_error(Matrix activations, Matrix prevError, Matrix prevWeights) {
+    return Matrix(activations)
+           .mult(Matrix(activations).scalarPreSub(1.0))
+           .mult(Matrix(prevError).dotT(prevWeights));
+}
 
-// }
+void Perceptron::output_update_weights(Matrix outputError, Matrix hiddenActivation, float learningRate) {
+    weights->add((hiddenActivation.Tdot(outputError))
+        .scalarMult(learningRate));
+}
 
-// Matrix *Perceptron::output_update_weights(Matrix *error){
-
-// }
-
-// Matrix *Perceptron::hidden_update_weights(Matrix *error){
-
-// }
-
-
-// void Perceptron::train(Matrix *inputs, Matrix *expected, double learningRate, int trainingIterations) {
-//     // validate that the inputs is the right size according to numFeatures and numNeurons
-//     // scale data to be between 0 and 1
-//     Matrix *inputsNorm = new Matrix(inputs);
-//     inputsNorm.normalizeCols();
-//     // calculate activations
-//     for (int i = 0; i < trainingIterations; i++) {
-//         Matrix *activations = new Matrix(inputsNorm.dot(weights));
-//         // apply the threshold function to the activations
-//         activations.map(threshold);
-//         // alter weights
-//         weights->sub((Matrix(inputsNorm.Tdot(activations.sub(expected)))).scalarMult(learningRate));
-//     }
-// }
-
-// void Perceptron::recall(Matrix *inputs) {
-//     Matrix *inputsNorm = new Matrix(inputs);
-//     inputsNorm.normalizeCols();
-//     Matrix *activations = new Matrix(inputsNorm.dot(weights));
-//     activations.map(threshold);
-//     print(inputs, activations);
-// }
+void Perceptron::hidden_update_weights(Matrix hiddenError, Matrix inputs, float learningRate) {
+    int cols = hiddenError.maxCols();
+    hiddenError.narrow(cols - 1);
+    weights->add((inputs.Tdot(hiddenError)).scalarMult(learningRate));
+}
 
 void Perceptron::print(Matrix inputs, Matrix outputs) {
     int inputCols = inputs.numCols() - 1;
