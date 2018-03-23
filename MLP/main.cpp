@@ -14,17 +14,29 @@ int main(int argc, const char *argv[]) {
     Matrix *testData = NULL;
     int inputNum = 0;
     int rows = 0;
+    int hiddenNodes = 0;
     int columns = 0;
-    cin >> inputNum >> rows >> columns;
-    // Create Perceptron
-    Perceptron perceptron(inputNum, columns - inputNum);
+    cin >> inputNum >> hiddenNodes >> rows >> columns;
+    // Create Perceptrons
+    Perceptron hiddenLayer(inputNum, hiddenNodes);
+    Perceptron outputLayer(hiddenNodes, columns - inputNum);
     getTrainingData(trainingData, trainingAnswers, inputNum, rows, columns);
     // Train
-    perceptron.train(trainingData, trainingAnswers, 0.1, 1000);
+    int trainingIterations = 1;
+    float learningRate = 0.1;
+    Matrix hiddenActivation;
+    Matrix outputActivation;
+    Matrix hiddenError;
+    Matrix outputError;
+    for (int i = 0; i < trainingIterations; i++) {
+        hiddenActivation = hiddenLayer.hidden_activation(trainingData);
+        outputActivation = outputLayer.output_activation(hiddenActivation);
+        outputActivation.print();
+    }
     // Recall
     cin >> rows >> columns;
     getTestData(testData, rows, columns);
-    perceptron.recall(testData);
+    // perceptron.recall(testData);
 }
 
 void getTrainingData(Matrix *&data, Matrix *&answers, int inputNum, int rows, int columns) {

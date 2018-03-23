@@ -12,10 +12,13 @@
 class Perceptron {
   public:
     Perceptron(int n, int m);
-    void train(Matrix *inputs, Matrix *expected, double learningRate, int trainingIterations);
-    void recall(Matrix *inputs);
+    Matrix output_activation(Matrix inputs);
+    Matrix hidden_activation(Matrix inputs);
+    Matrix add_bias(Matrix matrix);
+    // void train(Matrix *inputs, Matrix *expected, double learningRate, int trainingIterations);
+    // void recall(Matrix *inputs);
 
   private:
-    void print(Matrix *inputs, Matrix *outputs);
+    void print(Matrix inputs, Matrix outputs);
     Matrix *weights;
 };
