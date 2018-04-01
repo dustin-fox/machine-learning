@@ -1,5 +1,5 @@
 #include "perceptron.h"
-#include "lib/mat.h"
+#include "../lib/mat.h"
 #include <iostream>
 #include <string>
 

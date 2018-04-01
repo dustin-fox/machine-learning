@@ -1,4 +1,6 @@
 #include "rand.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 
 // // // // // // // // // // // // // // // // // // // // // // // // //
@@ -95,7 +97,7 @@ public:
 
 static void isaac(Randcontext &context)
 {
-    register unsigned long long int a,b,x,y,*m,*mm,*m2,*r,*mend;
+    unsigned long long int a,b,x,y,*m,*mm,*m2,*r,*mend;
 
     mm=context.randmem; r=context.randrsl;
     a = context.randa; b = context.randb + (++context.randc);
@@ -326,7 +328,7 @@ inline unsigned long long int randULL()
 // return a uniformly distributed random number between 0 and 1
 // NOTE: this can be relatively slow since the multiply is a 64 bit
 // multiply.
-double randUnit()
+inline double randUnit()
 {
     return randULL()*unitizer64;
 }
@@ -458,7 +460,7 @@ double randGamma(int ia, float scale)
     double am, e, s, v1, v2, x, y;
 
     if (ia < 1) {
-	fprintf(stderr, "ERROR(randGamma): shape parm: %d is less than 1\n", ia);
+	printf("ERROR(randGamma): shape parm: %d is less than 1\n", ia);
 	exit(1);
     }
     if (ia < 6) {

@@ -3,7 +3,14 @@
 
 ///////////////////////////////////////////////////
 //
-// This header file is for use with rand.cpp, randf.cpp, and randmt.cpp
+// This header file is for use with rand.cpp, randf.cpp, or randmt.cpp
+// Each file provides a different random number generator engine and
+// this header can be used for any of them.
+//    rand.cpp - old fashion random number generator based on numerical recipies
+//    randf.cpp - super fast random number generator good for most purposes
+//    randmt.cpp - hard core Mersenne Twister random number generator
+// NOTE: Compile by using rand.h and picking EXACTLY ONE of the cpp files.
+// 
 // 
 // Author: Robert B. Heckendorn, University of Idaho, 2017
 // Date: Feb 12, 2017

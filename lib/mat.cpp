@@ -6,18 +6,13 @@
 // generation.   Comment these out if you want completely stand-alone
 // functionality.  Uses some code from Numerical Recipes (see comments).
 //
-// Author: Robert B. Heckendorn, University of Idaho, 2017
-// Date: Mar 19, 2017
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include <iostream>
-#include "rand.h"
+// Author: Robert B. Heckendorn, University of Idaho, 2018
+// Version: 2.4
+// Date: Mar 22, 2018
 
 #include "mat.h"
 
-// the followin are routines taken from Numerical Recipes in C
+// the followin are routines taken from the book Numerical Recipes in C
 static void householder(double **a, int n, double d[], double e[]);
 static void eigen(double *d, double *e, int n, double **z);
 static bool gaussj(double **a, int n, double **b, int m);
@@ -29,7 +24,8 @@ static bool gaussj(double **a, int n, double **b, int m);
 //
 //  a friend class to Matrix that iterates through a Matrix: a row iterator
 //
-//  Note: although it uses std::string it uses printf because I hate cout. :-)
+//  Note: although it uses std::string it uses printf because I hate cout's
+//  awkwardness. :-)
 //  Note: errors are reported to stdout
 //
 
@@ -48,7 +44,7 @@ MatrixRowIter::~MatrixRowIter()
 {
     mat = NULL;
     r = 0;
-    delete [] arow;                  // deallocate the row
+    delete arow;                  // deallocate the row pointed to by arow
     more = false;
 }
 
@@ -63,6 +59,7 @@ Matrix *MatrixRowIter::rowBegin()
     for (int i=0; i<mat->maxc; i++) arow->m[0][i] = mat->m[r][i];
     more = true;
     arow->defined = true;
+    arow->submatrix = false;
 
     return arow;
 }
@@ -74,6 +71,7 @@ Matrix *MatrixRowIter::rowNext()
         r++;
         for (int i=0; i<mat->maxc; i++) arow->m[0][i] = mat->m[r][i];
         arow->defined = true;
+        arow->submatrix = false;
     }
     else {
         more = false;
@@ -101,36 +99,47 @@ int MatrixRowIter::row()
 //
 // A simple class for matrix operations.   It has some nice debugging features like
 // trying hard to check that the proper dimensions are used.   It is very draconian
-// about this so there is an important different between row vectors and column vectors.
+// about this so there is an important difference between row vectors and column vectors.
 // I find this helps students get the math to work out correctly if you pay attention to
 // this difference.   The routines allow you to name a matrix.  The name is then used
 // in debug output.   Other things checked include referencing out of bounds.
+// If a row is a nonnegative number then r row pointers will be allocated.
+// If a row and col are nonnegative numbers then c columns will be allocated for each row.
+// If a row is nonnegative but col is negative then only row pointers allocated which is used
+// for submatrices.
+// Note: if row<0 no space at all will be allocated.
+//
+// Default: isSubMatrix=false
+//
+bool Matrix::debug = false;
 
-void Matrix::allocate(int r, int c, std::string namex)
+void Matrix::allocate(int r, int c, std::string namex, bool isSubMatrix) 
 {
+    if (isSubMatrix) c=-1;
     maxr = r;
     maxc = c;
     name = namex;
+    m = NULL;
 
-    // intentionally try to catch the user error of r==0 or c==0
-    if (maxr <= 0 || maxc <= 0) {
-        m = NULL;
-        if (!(maxr == -1 && maxc == -1)) {  // signal to not allocate space
+    if (maxr < 0 || maxc < 0) {
+        if (maxr != -1 && maxc !=-1) {
             if (name.length()==0)
-                printf("ERROR(allocation): Trying to create a matrix of size %d X %d\n", r, c);
+                printf("ERROR(allocate): Trying to create a matrix of size %d X %d\n", r, c);
             else
-                printf("ERROR(allocation): Trying to create matrix \"%s\" of size %d X %d\n",
+                printf("ERROR(allocate): Trying to create matrix \"%s\" of size %d X %d\n",
                        name.c_str(), r, c);
             exit(1);
         }
-        maxr = maxc = -1;
     }
-    else {
+
+    if (maxr>=0) {
         m = new double * [maxr];
-        for (int i=0; i<maxr; i++) m[i] = new double [maxc];
+        if (maxc>=0) for (int i=0; i<maxr; i++) m[i] = new double [maxc];
     }
 
     defined = false;
+    submatrix = isSubMatrix;
+    if (debug) printf("DEBUG(  allocate): name \"%s\", size %d X %d\n", name.c_str(), r, c);
 }
 
 
@@ -140,12 +149,15 @@ bool Matrix::deallocate()
 
     allocated = (m!=NULL);
     if (allocated) {
-        for (int i=0; i<maxr; i++) delete [] m[i];
+        if (!submatrix) for (int i=0; i<maxr; i++) delete [] m[i];
         delete [] m;
         m = NULL;   // to be sure
     }
 
+    if (debug) printf("DEBUG(deallocate): name \"%s\", size %d X %d\n", name.c_str(), maxr, maxc);
+
     defined = false;
+    submatrix = false;
 
     return allocated;
 }
@@ -168,10 +180,25 @@ Matrix::Matrix(std::string namex)
 
 
 
+// This creates a subMatrix!
+Matrix::Matrix(int r, std::string namex)
+{
+    allocate(r, -1, namex, true);       // WARNING: allocate as subMatrix!!!
+}
+
+
 Matrix::Matrix(int r, int c, std::string namex)
 {
     allocate(r, c, namex);
 }
+
+
+Matrix::Matrix(int r, int c, double value, std::string namex)
+{
+    allocate(r, c, namex);
+    constant(value);
+}
+
 
 
 Matrix::Matrix(int r, int c, double *data, std::string namex)
@@ -235,7 +262,7 @@ const std::string &Matrix::getName(const std::string &defaultName) const
 
 
 // get the value of an element of the matrix
-double Matrix::get(int r, int c)
+double Matrix::get(int r, int c) const
 {
 //    printf("GET:  %llu @  %d %d %lf\n", (unsigned long long int)this, r, c, m[r][c]);
 
@@ -284,6 +311,13 @@ double Matrix::set(int r, int c, double v)
 }
 
 
+// set the value of an element of the matrix  (use this carefully)
+void Matrix::setDefined()
+{
+    defined = true;
+}
+
+
 // set the name of a matrix
 void Matrix::setName(std::string newName)
 {
@@ -294,12 +328,13 @@ void Matrix::setName(std::string newName)
 // do bounds checking
 void Matrix::checkBounds(int r, int c, std::string msg) const
 {
+    assertIndexOK(r, c, msg);  // zzz fix this so it reads nicer
     if (r>=maxr  || r<0) {
-        printf("ERROR(%s): asking for row %d but but size is %d X %d\n", msg.c_str(), r, maxr, maxc);
+        printf("ERROR(%s): asking for row %d but size is %d X %d\n", msg.c_str(), r, maxr, maxc);
         exit(1);
-    }
+     }
     if (c>=maxc  || c<0) {
-        printf("ERROR(%s): asking for col %d but but size is %d X %d\n", msg.c_str(), c, maxr, maxc);
+        printf("ERROR(%s): asking for col %d but size is %d X %d\n", msg.c_str(), c, maxr, maxc);
         exit(1);
     }
 }
@@ -339,6 +374,21 @@ void Matrix::assertDefined(std::string msg) const
 }
 
 
+// assert matrix doesn't have negative dimensions
+void Matrix::assertUsableSize(std::string msg) const
+{
+    if (maxr < 0 || maxc < 0) {
+        if (name.length()==0)
+            printf("ERROR(%s): Matrix is of unusable size %d X %d\n", msg.c_str(), maxr, maxc);
+        else
+            printf("ERROR(%s): Matrix \"%s\" is of unusable size %d X %d\n",
+                   msg.c_str(), name.c_str(), maxr, maxc);
+        exit(1);
+    }
+}
+
+
+
 void Matrix::assertSquare(std::string msg) const
 {
     assertDefined(msg);
@@ -356,6 +406,7 @@ void Matrix::assertSquare(std::string msg) const
 
 
 
+// assert size is rxc
 void Matrix::assertSize(int r, int c, std::string msg) const
 {
     assertDefined(msg);
@@ -370,6 +421,8 @@ void Matrix::assertSize(int r, int c, std::string msg) const
     }
 }
 
+
+// assert r,c is in matrix
 void Matrix::assertIndexOK(int r, int c, std::string msg) const
 {
     if (r<0 || r>=maxr || c<0 || c>=maxc) {
@@ -378,7 +431,7 @@ void Matrix::assertIndexOK(int r, int c, std::string msg) const
                    msg.c_str(), r, c, maxr, maxc);
         }
         else {
-            printf("ERROR(%s): index out of bounds: asking for (%d, %d) but size of matrix %s is %d X %d\n",
+            printf("ERROR(%s): index out of bounds: asking for (%d, %d) but size of matrix \"%s\" is %d X %d\n",
                    msg.c_str(), r, c, name.c_str(), maxr, maxc);
         }
         exit(1);
@@ -418,6 +471,7 @@ void Matrix::assertColsEqual(const Matrix &other, std::string msg) const
 }
 
 
+// assert two matrices have the same size
 void Matrix::assertOtherSizeMatch(const Matrix &other, std::string msg) const
 {
     assertRowsEqual(other, msg);
@@ -425,6 +479,7 @@ void Matrix::assertOtherSizeMatch(const Matrix &other, std::string msg) const
 }
 
 
+// assert is a row vector
 void Matrix::assertRowVector(std::string msg) const
 {
     if (maxr!=1) {
@@ -441,6 +496,7 @@ void Matrix::assertRowVector(std::string msg) const
 }
 
 
+// assert is a column vector
 void Matrix::assertColVector(std::string msg) const
 {
     if (maxc!=1) {
@@ -494,7 +550,7 @@ Matrix &Matrix::operator=(const Matrix &other)
     if (this==&other) return *this;       // avoid self copy
 
     // allocate if a new size
-    reallocate(other.maxr, other.maxc, "");
+    reallocate(other.maxr, other.maxc, name);
 
     // copy
     for (int r=0; r<maxr; r++) {
@@ -525,6 +581,29 @@ Matrix Matrix::extract(int minr, int minc, int sizer, int sizec)
     for (int r=minr; r<minr+sizer; r++) {
         for (int c=minc; c<minc+sizec; c++) {
             out.m[r-minr][c-minc] = m[r][c];
+        }
+    }
+    out.defined = true;
+
+    return out;
+}
+
+
+// extracts a matrix from another starting at (minr, minc) and of
+// the stride length given for rows and cols.
+// WARNING: allocates new matrix for answer
+Matrix Matrix::extractStride(int minr, int minc, int stepr, int stepc)
+{
+    int newr, newc;
+    checkBounds(minr, minc, "lower bounds extract");
+
+    newr = (maxr-minr + (stepr - 1))/stepr + 1;
+    newc = (maxc-minc + (stepc - 1))/stepc + 1;
+    Matrix out(newr, newc);
+
+    for (int r=minr; r<maxr; r+=stepr) {
+        for (int c=minc; c<maxc; c+=stepc) {
+            out.m[(r-minr)/stepr][(c-minc)/stepc] = m[r][c];
         }
     }
     out.defined = true;
@@ -575,7 +654,7 @@ Matrix &Matrix::insertRowVector(int loc, const Matrix &other)
 {
     other.assertRowVector("insertRowVector");
     assertColsEqual(other, "insertRowVector");
-// zzz check loc
+    checkBounds(loc, 0, "insertRowVector");
 
     for (int c=0; c<other.maxc; c++) {
         m[loc][c] = other.m[0][c];
@@ -797,12 +876,42 @@ double Matrix::stddevCol(int c) const
 }
 
 
+// count number of items in column c equal to value
+int Matrix::countEqCol(int c, double value) const
+{
+    int count;
+
+    count = 0;
+    for (int r=0; r<maxr; r++) {
+        if (m[r][c]==value) count++;
+    }
+
+    return count;
+}
+
+
+// count number of items in column c not equal to value
+int Matrix::countNeqCol(int c, double value) const
+{
+    int count;
+
+    count = 0;
+    for (int r=0; r<maxr; r++) {
+        if (m[r][c]!=value) count++;
+    }
+
+    return count;
+}
+
+
+
+
 
 // returns new matrix for a matrix of min and max of each column
 // normalizes within each column according to the min and max in that column
 // so the range is now between 0 and 1 in each column
 // NOTE: it will not rescale a column that is a constant!!
-// WARNING: allocates new matrix for answer
+// WARNING: allocates new matrix for answer and alters matrix self
 Matrix Matrix::normalizeCols()
 {
     double min, max;
@@ -832,6 +941,7 @@ Matrix Matrix::normalizeCols()
         }
     }
     minMax.defined = true;
+
 
     return minMax;
 }
@@ -1170,6 +1280,21 @@ Matrix &Matrix::addRowVector(const Matrix &other)
     return *this;
 }
 
+// add a row vector matrix in other to the given row of self
+Matrix &Matrix::addRowVector(int r, const Matrix &other)
+{
+    assertDefined("addRowVector");
+    assertColsEqual(other, "addRowVector");
+    other.assertRowVector("addRowVector");
+
+    for (int c=0; c<maxc; c++) {
+        m[r][c] += other.m[0][c];
+    }
+
+    return *this;
+}
+
+
 
 // subtract row matrix to each row of self
 Matrix &Matrix::subRowVector(const Matrix &other)
@@ -1243,17 +1368,6 @@ Matrix &Matrix::div(const Matrix &other)
             }
             m[r][c] /= other.m[r][c];
         }
-    }
-
-    return *this;
-}
-
-
-//zzz
-Matrix &Matrix::rowAdd(int r, const Matrix &other)
-{
-    for (int c=0; c<maxc; c++) {
-        m[r][c] += other.m[0][c];
     }
 
     return *this;
@@ -1670,6 +1784,8 @@ Matrix &Matrix::mapCol(int c, double (*f)(double x))
 // so the function is free to use only the index pair.
 Matrix &Matrix::mapIndex(double (*f)(int r, int c, double x))
 {
+    assertDefined("mapIndex");
+
     for (int r=0; r<maxr; r++) {
         for (int c=0; c<maxc; c++) {
             m[r][c] = f(r, c, m[r][c]);
@@ -1686,6 +1802,8 @@ Matrix &Matrix::mapIndex(double (*f)(int r, int c, double x))
 // initializes the matrix to a constant
 Matrix &Matrix::constant(double x)
 {
+    assertUsableSize("constant");
+    
     for (int r=0; r<maxr; r++) {
         for (int c=0; c<maxc; c++) {
             m[r][c] = x;
@@ -1699,13 +1817,31 @@ Matrix &Matrix::constant(double x)
 
 
 
-// initializes the matrix to a constant
+// initializes a column in a matrix to a constant
 Matrix &Matrix::constantCol(int c, double x)
 {
     checkBounds(0, c, "constantCol");
 
     for (int r=0; r<maxr; r++) {
             m[r][c] = x;
+    }
+
+    defined = true;
+
+    return *this;
+}
+
+
+// initializes a column in a matrix to a constant
+// WARNING: even though this only sets one column it marks the matrix as defined!
+//  This is because this is often used to init a matrix.
+Matrix &Matrix::constantColRange(int c, double start, double step)
+{
+    checkBounds(0, c, "constantColRange");
+
+    for (int r=0; r<maxr; r++) {
+            m[r][c] = start;
+            start += step;
     }
 
     defined = true;
@@ -1798,7 +1934,7 @@ Matrix &Matrix::sample(Matrix &out)
 
 
 
-// allocates new matrix for answer
+// WARNING: allocates new matrix for answer
 Matrix Matrix::transpose()
 {
     assertDefined("transpose");
@@ -1817,8 +1953,8 @@ Matrix Matrix::transpose()
 
 
 
-// transposes in place and will reallocate to get a nonsquare matrix
-// transpose.
+// transposes in place, but will reallocate and copy if a nonsquare matrix!
+// WARNING: overwrites self
 Matrix &Matrix::transposeSelf()
 {
     assertDefined("transposeSelf");
@@ -1936,7 +2072,7 @@ Matrix &Matrix::inverse()
 
 
 // just print the size and name of the matrix
-void Matrix::printSize(std::string msg)
+void Matrix::printSize(std::string msg) const
 {
     if (msg.length()) {
         printf("%s ", msg.c_str());
@@ -1953,7 +2089,7 @@ void Matrix::printSize(std::string msg)
 
 
 // print the whole matrix including it's name and size
-void Matrix::print(std::string msg)
+void Matrix::print(std::string msg) const
 {
     assertDefined("print");
 
@@ -1963,6 +2099,28 @@ void Matrix::print(std::string msg)
         for (int c=0; c<maxc; c++) {
             printf("%10.5lf ", m[r][c]);
 //            printf("%7.3lg ", m[r][c]);
+        }
+        printf("\n");
+    }
+
+    fflush(stdout);
+}
+
+
+// print the whole matrix including it's name and size
+void Matrix::printInt(std::string msg) const
+{
+    assertDefined("printInt");
+
+    printSize(msg);
+
+    for (int r=0; r<maxr; r++) {
+        for (int c=0; c<maxc; c++) {
+            if (m[r][c] != int(m[r][c])) {
+                printf("ERROR(printInt): Trying to print an integer matrix but element at position %d, %d is %10.5lg which is not an integer\n", r, c, m[r][c]);
+                exit(1);
+            }
+            printf("%5d ", int(m[r][c]));
         }
         printf("\n");
     }
@@ -2114,7 +2272,10 @@ void isort(double a[], double *b[], int len)
     }
 }
 
-
+// Destroys self by replacing self with eigenvectors in rows.
+// Returns a new matrix with the eigenvalues in it.
+// Eigenvalues and vectors returned sorted from largest magnitude to smallest
+// WARNING: allocates new matrix for answer
 Matrix Matrix::eigenSystem()
 {
     assertDefined("eigenSystem");
@@ -2507,6 +2668,295 @@ void Matrix::sortRows() {
 
 
 
+// Create a subMatrix.   DANGER: This bit of evil is a matrix that POINTS
+// INTO ANOTHER MATRIX!   DANGER: Do not use the subMatrix after you
+// deallocate the other matrix!!   In a sense this is not a real matrix.
+// If you want this matrix to persist then you have to make a full copy of it.
+Matrix Matrix::subMatrix(int minr, int minc, int sizer, int sizec) const
+{
+    if (sizer==0) sizer = maxr - minr;
+    if (sizec==0) sizec = maxc - minc;
+
+    checkBounds(minr, minc, "lower bounds extract");
+    checkBounds(minr+sizer-1, minc+sizec-1, "upper bounds extract");
+
+    Matrix out(sizer);                         // allocate a subMatrix!
+    out.maxc = sizec;                          // fix internal column width
+
+    for (int r=0; r<sizer; r++) {
+        out.m[r] = &(m[minr][minc]);               // DANGER: we are copying pointers into other Matrix!!!
+        minr++;
+    }
+
+    out.defined = true;
+
+    return out;
+}    
+
+
+
+// Create a subMatrix.   DANGER: This bit of evil is a matrix that POINTS
+// INTO ANOTHER MATRIX!   DANGER: Do not use the subMatrix after you
+// deallocate the other matrix!!   In a sense this is not a real matrix.
+// If you want this matrix to persist then you have to make a full copy of it.
+Matrix Matrix::subMatrixEq(int c, double value) const
+{
+    checkBounds(0, c, "subMatrixEq");
+
+    std::vector<double *> rowList;        // this is a retrofit of using an array originally when vector better
+
+    for (int r=0; r<maxr; r++) {
+        if (m[r][c]==value) rowList.push_back(m[r]);
+    }
+
+    Matrix out(rowList.size());                         // allocate a subMatrix!
+    out.maxc = maxc;
+    
+    for (unsigned int r=0; r<rowList.size(); r++) {
+        out.m[r] = rowList[r];                          // DANGER: we are copying pointers into other Matrix!!!
+    }
+
+    out.defined = true;
+
+    return out;
+}    
+
+
+Matrix Matrix::subMatrixNeq(int c, double value) const
+{
+    checkBounds(0, c, "subMatrixNeq");
+
+    std::vector<double *> rowList;        // this is a retrofit of using an array originally when vector better
+
+    for (int r=0; r<maxr; r++) {
+        if (m[r][c]!=value) rowList.push_back(m[r]);
+    }
+
+    Matrix out(rowList.size());                         // allocate a subMatrix!
+    out.maxc = maxc;
+    
+    for (unsigned int r=0; r<rowList.size(); r++) {
+        out.m[r] = rowList[r];                          // DANGER: we are copying pointers into other Matrix!!!
+    }
+
+    out.defined = true;
+
+    return out;
+}    
+
+
+// // // // // // // // // // // // // // // // // // // // 
+//
+// image (picture) support (currently just pgm files)
+//
+// image (picture) support (currently only supports 8 bit pgm and ppm formats)
+// output is in ascii formats (zzz: fix someday to use more compressed output)
+// 8 bit gray is one integer in the range 0-255 for each pixel
+// 8 bit color is three integers in a row in the range 0-255 for RGB in each pixel.
+// That is an 8 bit color square 100x100 pixels gens a 100x300 dimensional array
+
+// helper routine for writing images
+int Matrix::byteValue(double x)
+{
+    int z;
+
+    z = int(x);
+    if (z<0) z = 0;
+    if (z>255) z = 255;
+
+    return z;
+}
+
+// helper routine for reading images
+Matrix Matrix::readImage(char *expectedType, char *caller, std::string filename, std::string namex)
+{
+    char magic[3];               // magic number
+    const int bufferSize=4096;   // buffer
+    char buffer[bufferSize];
+    FILE *IN;                    // input file
+    int newr, newc, max;               // picture parms
+
+    if (filename.length()>0) {
+        IN = fopen(filename.c_str(), "r");
+        if (IN==NULL) {
+            printf("ERROR(%s): Trying to open file \"%s\" but failed.\n", caller, filename.c_str());
+            exit(1);
+        }
+    }
+    else {
+        IN = stdin;
+    }
+
+    // get magic number of file
+    if (fscanf(IN, "%2s", magic)!=1) {
+        printf("ERROR(%s): unable to read file magic number for file named \"%s\".\n", caller, filename.c_str());
+        exit(1);
+    }
+
+    if (! (magic[0]=='P' && (magic[1]==expectedType[0] || magic[1]==expectedType[1]))) {
+        printf("ERROR(%s): Trying to open a file named \"%s\" in P%c or P%c format but had wrong magic number.\n",
+               caller,
+               filename.c_str(),
+               expectedType[0],
+               expectedType[1]);
+        exit(1);
+    }
+
+    // read comment lines (Warning: assumes comments come right after magic number)
+    fscanf(IN, "%s", buffer);
+    while (*buffer=='#') {
+            fgets(buffer, bufferSize, IN);
+//            printf("# %s", buffer);
+            fscanf(IN, "%s", buffer);
+    }
+
+    // read picture parameters
+    newc = atoi(buffer);
+    fscanf(IN, "%d", &newr);
+    fscanf(IN, "%d", &max);
+
+    // is color?
+    if (magic[1]=='3' || magic[1]=='6') {
+        newc *= 3;
+    }
+
+    // reallocate myself
+    reallocate(newr, newc, name);
+
+    // is ascii numbers?
+    if (magic[1]=='2' || magic[1]=='3') {
+        for (int r=0; r<maxr; r++) {
+            for (int c=0; c<maxc; c++) {
+                int tmp;
+                if (fscanf(IN, "%d", &tmp)!=1) {
+                    printf("ERROR(%s): Trying to read ascii pixel value at position (%d, %d) from file \"%s\" but failed.\n",
+                           caller,
+                           r, c,
+                           filename.c_str());
+                    exit(1);
+                }
+                m[r][c] = tmp;
+            }
+        }
+    }
+
+    // is binary numbers?
+    if (magic[1]=='5' || magic[1]=='6') {
+        getc(IN);
+        for (int r=0; r<maxr; r++) {
+            for (int c=0; c<maxc; c++) {
+                m[r][c] = getc(IN);
+            }
+        }
+    }
+
+    defined = true;
+
+    return *this;
+}
+
+
+// Read a pgm file  (8 bit gray scale) in P2 or P5 format.
+// WARNING: crudely assumes comments are less than 4K bytes
+Matrix Matrix::readImagePgm(std::string filename, std::string namex)
+{
+    return readImage((char *)"25", (char *)"readImagePgm", filename, namex);  // accept types P2 or P5
+}
+
+
+Matrix Matrix::readImagePpm(std::string filename, std::string namex)
+{
+    return readImage((char *)"36", (char *)"readImagePpm", filename, namex);  // accept types P3 or P6
+}
+
+
+
+// Write a pgm file  (8 bit gray scale)
+// It uses the readable character P2 representation of a picture, rather than
+// the binary P5 representation.  Line length is unrestricted.
+// WARNING: the user is entrusted with the task of using the pgm file extension
+// in the filename
+void Matrix::writeImagePgm(std::string filename, std::string comment)
+{
+    FILE *OUT;
+
+    assertDefined("writeImagePgm");
+    if (filename.length()>0) {
+        OUT = fopen(filename.c_str(), "w");
+        if (OUT==NULL) {
+            printf("ERROR(writeImagePgm): Trying to open file \"%s\" but failed.\n", filename.c_str());
+            exit(1);
+        }
+    }
+    else {
+        OUT = stdout;
+    }
+
+    fprintf(OUT, "P2\n");
+    if (name.length()>0) fprintf(OUT, "# Name: %s\n", name.c_str());
+    if (comment.length()>0) fprintf(OUT, "# %s\n", comment.c_str());
+    fprintf(OUT, "# 8 bit gray scale\n");
+    fprintf(OUT, "%d %d\n", maxc, maxr);        // NOTE: columns then rows!
+    fprintf(OUT, "255\n");                      // maximum level of gray
+    for (int r=0; r<maxr; r++) {
+        for (int c=0; c<maxc-1; c++) {
+            fprintf(OUT, "%d ", byteValue(m[r][c]));
+        }
+        fprintf(OUT, "%d\n", byteValue(m[r][maxc-1]));
+    }
+
+    fclose(OUT);
+}
+
+
+
+// Write a ppm file  (8 bit gray scale)
+// It uses the readable character P2 representation of a picture, rather than
+// the binary P5 representation.  Line length is unrestricted.
+// WARNING: the user is entrusted with the task of using the ppm file extension
+// in the filename
+void Matrix::writeImagePpm(std::string filename, std::string comment)
+{
+    FILE *OUT;
+
+    assertDefined("writeImagePpm");
+    if (maxc%3 != 0) {
+        if (name.length()==0) {
+            printf("ERROR(writeImagePpm): Number of columns %d not divisible by three but supposed to be a matrix of RGB values.\n", maxc);
+        }
+        else {
+            printf("ERROR(writeImagePpm): Number of columns %d in matrix named \"%s\" is not divisible by three but supposed to be a matrix of RGB values .\n", maxc, name.c_str());
+        }
+        exit(1);
+    }
+
+    if (filename.length()>0) {
+        OUT = fopen(filename.c_str(), "w");
+        if (OUT==NULL) {
+            printf("ERROR(writeImagePpm): Trying to open file \"%s\" but failed.\n", filename.c_str());
+            exit(1);
+        }
+    }
+    else {
+        OUT = stdout;
+    }
+
+    fprintf(OUT, "P3\n");
+    if (name.length()>0) fprintf(OUT, "# Name: %s\n", name.c_str());
+    if (comment.length()>0) fprintf(OUT, "# %s\n", comment.c_str());
+    fprintf(OUT, "# 8 bit color\n");
+    fprintf(OUT, "%d %d\n", maxc/3, maxr);      // NOTE: columns then rows!
+    fprintf(OUT, "255\n");                      // maximum level of color channels
+    for (int r=0; r<maxr; r++) {
+        for (int c=0; c<maxc-1; c++) {
+            fprintf(OUT, "%d ", byteValue(m[r][c]));
+        }
+        fprintf(OUT, "%d\n", byteValue(m[r][maxc-1]));
+    }
+
+    fclose(OUT);
+}
+
 
 
 // // // // // // // // // // // // // // // // // // // // // // // // 
@@ -2517,7 +2967,6 @@ void Matrix::sortRows() {
 
 
 /* UNCOMMENT TO HAVE A MAIN FOR TESTING
-
 
 int main()
 {
@@ -2530,8 +2979,8 @@ int main()
     z.print();
     return 0;
 }
-
-
+*/
+/*
 double f(double x) { return (x>10 ? 1.0 : 0.0); };
 
 double yvalues[] = {2, 3, 5, 7, 11, 13};
@@ -2697,17 +3146,37 @@ double avalues[] = {2, 0, -9, 3, 4, 1};
 double bvalues[] = {5, 2, 6, -4, 4, 9};
 double cvalues[] = {2, 0, -9, 3, 4, 1};
 double dvalues[] = {5, 2, 6, 8, -4, 4, 9, 7};
+double evalues[] = {1, 1, 2, 2, 3, 1, 4, 2, 5, 1};
 
 int main()
 {
+//    Matrix::debug = true;
     Matrix x(3, 4,  yvalues, "x");
     Matrix a(2, 3, avalues, "a");
     Matrix b(2, 3, bvalues, "b");
     Matrix c(2, 3, cvalues, "c");
     Matrix d(2, 4, dvalues, "d");
+    Matrix e(5, 2, evalues, "e");
+    Matrix y("y");
 
     x.print();
+    x.subMatrix(1, 1, 2, 2).transposeSelf();
+    x.print();
+
+    e.print();
+    e.subMatrixEq(1, 1).print();
+    e.subMatrixEq(1, 3).print();
+    e.subMatrixNeq(0, 3).print();
+    printf("%d\n", e.countNeqCol(0, 1));
+    printf("%d\n", e.countNeqCol(0, 2));
+    printf("%d\n", e.countNeqCol(0, 3));
+    printf("%d\n", e.countNeqCol(0, 8));
+
     x.cov().print("cov(x)");
+    {
+        y = e.cov();
+    }
+    y.print();
 
     a.print();
     b.print();
@@ -2721,5 +3190,28 @@ int main()
 
     return 0;
 }
+*/
+/*
+int main()
+{
+    Matrix pic(300, 300, "picture");
 
+    for (int c=0; c<pic.numCols(); c++) {
+        pic.constantColRange(c, 0, 1);
+    }
+    pic.writeImagePgm("zfade.pgm", "fade.pgm");
+
+    pic.readImagePgm("znano.pgm", "nano");
+    pic.print();
+
+    pic.readImagePgm("mondrianRedBlueAndYellow.pgm", "mondrian");
+
+    pic.readImagePpm("mondrianRedBlueAndYellow.ppm", "mondrian");
+    pic.writeImagePgm("zm.pgm", "mondrian.pgm");
+
+    pic.readImagePpm("girlWithPearlEarringSm.ppm", "mondrian");
+    pic.writeImagePgm("zg.pgm", "girl with pearl earring color");
+
+//    pic.readImagePgm("z.pgm", "mondrian").printInt();
+}
 */

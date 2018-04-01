@@ -20,8 +20,8 @@ lib/rand.h
 
 OBJS=\
 perceptron.o\
-lib/mat.o\
-lib/rand.o
+../lib/mat.o\
+../lib/rand.o
 
 $(BIN): $(OBJS) $(BIN).o
 	$(CXX)  $(CFLAGS) $(OBJS) $(BIN).o $(LIBS) -o $(BIN)

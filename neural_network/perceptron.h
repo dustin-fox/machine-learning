@@ -5,7 +5,7 @@
  * @Version 0.1 03/01/18
  */
 
-#include "lib/mat.h"
+#include "../lib/mat.h"
 
 #define RANDOM_RANGE 0.05
 
