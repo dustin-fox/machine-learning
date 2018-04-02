@@ -31,16 +31,48 @@
  *    y=np.transpose(np.dot(evecs,x))+m
  *    return x,y,evals,evecs
  */
-#include "../lib/mat.h"
+#include <iostream>
 
-void pca(Matrix data) {
-
-}
-
-void read_test_data() {
-    
-}
+#include "lib/mat.h"
 
 int main() {
-
+    Matrix mean("Mean");
+    Matrix normalizedData("Normalized");
+    Matrix covariance("Covariance");
+    Matrix eigenvectors("EigenVectors");
+    Matrix eigenvalues("EigenValues");
+    Matrix compressedData("Encoded");
+    Matrix newData("NewData");
+    Matrix originalData("Pic");
+    int eigenvectorCount = 0;
+    double dataElementsCount = 0.f;
+    // Read in the number of eigenvectors
+    std::cin >> eigenvectorCount;
+    // Read in picture to analyze
+    originalData.readImagePpm("", "");
+    originalData.writeImagePpm("z-before.ppm", "");
+    dataElementsCount = originalData.numCols() * originalData.numRows();
+    originalData.printSize();
+    // Center the Data
+    mean = originalData.meanVec();
+    normalizedData = originalData;
+    normalizedData.subRowVector(mean);
+    // Create the covarianve matrix
+    covariance = normalizedData.cov();
+    // Compute the eigenvalues and sort in decending order
+    eigenvectors = covariance;
+    eigenvalues = eigenvectors.eigenSystem();
+    eigenvalues.printSize();
+    eigenvectors.shorten(eigenvectorCount);
+    eigenvalues.narrow(eigenvectorCount);
+    // Produce the new data matrix
+    compressedData = eigenvectors.dotT(normalizedData);
+    compressedData.transpose().printSize();
+    // Decompress data
+    newData = ((eigenvectors.Tdot(compressedData)).transpose()).addRowVector(mean);
+    // Find the data loss from compression using sum of squares distance.
+    std::printf("DIST: %f\n", originalData.dist2(newData) / dataElementsCount);
+    // Create a new .ppm file from newData
+    newData.writeImagePpm("z-after.ppm", "");
+    return 0;
 }
