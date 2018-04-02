@@ -37,6 +37,7 @@
 
 int main() {
     Matrix mean("Mean");
+    Matrix standardDiviation("StandardDiviation");
     Matrix normalizedData("Normalized");
     Matrix covariance("Covariance");
     Matrix eigenvectors("EigenVectors");
@@ -55,8 +56,10 @@ int main() {
     originalData.printSize();
     // Center the Data
     mean = originalData.meanVec();
+    standardDiviation = originalData.stddevVec();
     normalizedData = originalData;
     normalizedData.subRowVector(mean);
+    normalizedData.divRowVector(standardDiviation);
     // Create the covarianve matrix
     covariance = normalizedData.cov();
     // Compute the eigenvalues and sort in decending order
@@ -69,9 +72,9 @@ int main() {
     compressedData = eigenvectors.dotT(normalizedData);
     compressedData.transpose().printSize();
     // Decompress data
-    newData = ((eigenvectors.Tdot(compressedData)).transpose()).addRowVector(mean);
+    newData = ((eigenvectors.Tdot(compressedData)).transpose()).multRowVector(standardDiviation).addRowVector(mean);
     // Find the data loss from compression using sum of squares distance.
-    std::printf("DIST: %f\n", originalData.dist2(newData) / dataElementsCount);
+    std::printf("DIST: %.6g\n", originalData.dist2(newData) / dataElementsCount);
     // Create a new .ppm file from newData
     newData.writeImagePpm("z-after.ppm", "");
     return 0;
