@@ -70,7 +70,8 @@ int main() {
     eigenvalues.narrow(eigenvectorCount);
     // Produce the new data matrix
     compressedData = eigenvectors.dotT(normalizedData);
-    compressedData.transpose().printSize();
+    compressedData.transposeSelf().printSize();
+    compressedData.transposeSelf();
     // Decompress data
     newData = ((eigenvectors.Tdot(compressedData)).transpose()).multRowVector(standardDiviation).addRowVector(mean);
     // Find the data loss from compression using sum of squares distance.
