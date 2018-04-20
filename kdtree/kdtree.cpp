@@ -1,11 +1,16 @@
 #include "lib/mat.h"
 #include <iostream>
+#include <limits>
+#include <cmath>
 
 typedef char **cstring;
 
 void getData(Matrix &trainingData, Matrix &testData, cstring &labels);
 void buildKDTree(const Matrix &data, Matrix &tree);
-bool buildKDTree_R(Matrix &data, int currCol, int rowStart, int rowEnd);
+bool buildKDTreeAux(Matrix &data, int currCol, int rowStart, int rowEnd);
+double dist2(const Matrix &tree, const Matrix &node, const int &row);
+void nearest(const Matrix &tree, const Matrix &node);
+bool nearestAux(const Matrix &tree, const Matrix &node, int startRow, int endRow, double &nearestDistance, int &nearestRow);
 
 int main() {
     cstring labels;
@@ -25,7 +30,7 @@ void getData(Matrix &trainingData, Matrix &testData, cstring &labels) {
 
 void buildKDTree(const Matrix &data, Matrix &tree) {
     tree = Matrix(data);
-    if (!buildKDTree_R(tree, 1, 0, tree.numRows() - 1)) {
+    if (!buildKDTreeAux(tree, 1, 0, tree.numRows() - 1)) {
         std::cerr << "ERROR while building kd tree.." << std::endl;
         tree.setName("broken kd tree");
     } else {
@@ -33,25 +38,47 @@ void buildKDTree(const Matrix &data, Matrix &tree) {
     }
 }
 
-bool buildKDTree_R(Matrix &data, int currCol, int startRow, int endRow) {
+bool buildKDTreeAux(Matrix &tree, int currCol, int startRow, int endRow) {
     // Feature wrap around
-    if (currCol == data.numCols()) {
+    if (currCol == tree.numCols()) {
         currCol = 1;
     }
     // Sort by currCol
-    data.sortRowsByCol(currCol, startRow, endRow);
-    // Recurse on remaining data
+    tree.sortRowsByCol(currCol, startRow, endRow);
+    // Recurse on remaining tree
     int length = endRow - startRow;
     if (length <= 1) {
         return true;
     } else {
         int medianRow = startRow + length / 2;
-        if (buildKDTree_R(data , currCol + 1, startRow, medianRow - 1)) {
-            return buildKDTree_R(data, currCol + 1, medianRow + 1, endRow);
+        if (buildKDTreeAux(tree , currCol + 1, startRow, medianRow - 1)) {
+            return buildKDTreeAux(tree, currCol + 1, medianRow + 1, endRow);
         } else {
             return false;
         }
     }
     // Should never actually reach this point, but just to be sure.
     return false;
+}
+
+double dist2(const Matrix &tree, const Matrix &node, const int &row) {
+    double sum = 0.0;
+    for (int i = 1; i < tree.numCols(); i++) {
+        sum += pow((tree.get(row, i) - node.get(0, i)), 2.0);
+    }
+    return sqrt(sum);
+}
+
+void nearest(const Matrix &tree, const Matrix &node) {
+    double nearestDistance = std::numeric_limits<double>::max();
+    int nearestRow = 0;
+    nearestAux(tree, node, 0, tree.numRows(), nearestDistance, nearestRow);
+}
+
+bool nearestAux(const Matrix &tree, const Matrix &node, int startRow, int endRow, double &nearestDistance, int &nearestRow) {
+    int length = endRow - startRow;
+    int medianRow = startRow + length / 2;
+    if (length <= 1) {
+
+    }
 }
