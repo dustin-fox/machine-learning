@@ -28,6 +28,7 @@ int main() {
     getData(trainingData, testData, labels);
     buildKDTree(trainingData, KDTree);
     KDTree.printLabeledRow(labels, "KDTree version of matrix");
+    printf("\n\n");
     nearest(KDTree, testData, labels);
 }
 
@@ -73,7 +74,7 @@ bool buildKDTreeAux(Matrix &tree, int currCol, int startRow, int endRow) {
 double dist2(const Matrix &tree, const int &treeRow, const Matrix &node, const int &nodeRow) {
     double sum = 0.0;
     for (int i = 1; i < tree.numCols(); i++) {
-        sum += pow((tree.get(treeRow, i) - node.get(nodeRow, i)), 2.0);
+        sum += pow((tree.get(treeRow, i) - node.get(nodeRow, i - 1)), 2.0);
     }
     return sqrt(sum);
 }
@@ -83,6 +84,7 @@ void checkBest(const Matrix &tree, const int &treeRow, const Matrix &node, const
     if (newDist < nearestDistance) {
         nearestDistance = newDist;
         nearestRow = treeRow;
+        // printf("***MINDIST: %.3f MINROW: %d\n", nearestDistance, nearestRow);
     }
 }
 
@@ -94,14 +96,19 @@ void nearest(const Matrix &tree, const Matrix &node, cstring &labels) {
         nearestDistance = std::numeric_limits<double>::max();
         currCol = 1;
         nearestRow = 0;
-        nearestAux(tree, node, row, currCol, 0, tree.numRows(), nearestDistance, nearestRow);
+        printf("SOLVE:");
+        for (int feature = 0; feature < node.numCols(); feature++) {
+            printf(" %.2f", node.get(row, feature));
+        }
+        printf("\n");
+        nearestAux(tree, node, row, currCol, 0, tree.numRows() - 1, nearestDistance, nearestRow);
         //Printing
-        printf("BESTLEAF:    %f %d\n", nearestDistance, nearestRow);
+        printf("BESTLEAF: %.3f %d\n", nearestDistance, nearestRow);
         printf("Ans:");
         for (int feature = 1; feature < tree.numCols(); feature++) {
-            printf("     %f", tree.get(nearestRow, feature));
+            printf(" %.2f", tree.get(nearestRow, feature));
         }
-        printf("  %d %s\n", nearestRow, labels[(int)tree.get(nearestRow, 0)]);
+        printf(" %d %s\n\n", nearestRow, labels[(int)tree.get(nearestRow, 0)]);
     }
 }
 
@@ -113,37 +120,79 @@ bool nearestAux(const Matrix &tree,
                 const int &endRow,
                 double &nearestDistance,
                 int &nearestRow) {
-    printf("RANGE: %d  to  %d\n", startRow, endRow);
+    printf("RANGE: %d to %d\n", startRow, endRow);
     // Feature wrap around
     if (currCol == tree.numCols()) {
         currCol = 1;
     }
     // Calculated values
     int length = endRow - startRow;
-    int parentRow = startRow + length / 2;
     // Traverse
     if (length <= 2) { // handle leaf
+        // printf("***LEAF\n");
         checkBest(tree, startRow, node, nodeRow, nearestDistance, nearestRow);
         checkBest(tree, endRow, node, nodeRow, nearestDistance, nearestRow);
         return true;
     } else if (length > 2) { // handle non leaf
-        // check parent node
-        checkBest(tree, parentRow, node, nodeRow, nearestDistance, nearestRow);
-        if (nearestDistance == 0) {
+        // printf("***TREE\n");
+        int parentRow = startRow + length / 2;
+        // check best child
+        bool checkedLower = false;
+        if (node.get(nodeRow, currCol - 1) <= tree.get(parentRow, currCol)) {
+            checkedLower = true;
+            nearestAux(tree,
+                       node,
+                       nodeRow,
+                       currCol + 1,
+                       startRow,
+                       parentRow - 1,
+                       nearestDistance,
+                       nearestRow);
+        } else {
+            checkedLower = false;
+            nearestAux(tree,
+                       node,
+                       nodeRow,
+                       currCol + 1,
+                       parentRow + 1,
+                       endRow,
+                       nearestDistance,
+                       nearestRow);
+        }
+        // check to see if you can shortcut or if we need to check other child
+        double distFromParent = abs(node.get(nodeRow, currCol - 1) - tree.get(parentRow, currCol));
+        // printf("***DISTFROMPARENT: %.3f\n", distFromParent);
+        if (distFromParent < nearestDistance) {
+            printf("BESTPARENT1(%d): %.3f\n", parentRow, distFromParent);
+            // check parent node
+            checkBest(tree, parentRow, node, nodeRow, nearestDistance, nearestRow);
+            if (nearestDistance == 0) {
+                // quit only if we know the children can't be better
+                return true;
+            }
+            // check other child
+            if (checkedLower) {
+                nearestAux(tree,
+                           node,
+                           nodeRow,
+                           currCol + 1,
+                           parentRow + 1,
+                           endRow,
+                           nearestDistance,
+                           nearestRow);
+            } else {
+                nearestAux(tree,
+                           node,
+                           nodeRow,
+                           currCol + 1,
+                           startRow,
+                           parentRow - 1,
+                           nearestDistance,
+                           nearestRow);
+            }
+        } else {
             return true;
         }
-        // check the proper child node
-        double childNearestDistance = nearestDistance;
-        int childNearestRow = nearestRow;
-        if (node.get(nodeRow, currCol) > tree.get(parentRow, currCol)) {
-            nearestAux(tree, node, nodeRow, currCol, parentRow + 1, endRow, childNearestDistance, childNearestRow);
-        } else {
-            nearestAux(tree, node, nodeRow, currCol, startRow, parentRow - 1, childNearestDistance, childNearestRow);
-        }
-        // compare and set final nearest distance
-        nearestDistance = childNearestDistance;
-        nearestRow = childNearestRow;
-        return true;
     }
     return false;
 }

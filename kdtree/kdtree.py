@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
-# Author: Dr. Robert Heckendorn, Computer Science Department, University of Idaho, 2014
+# Author: Dr. Robert Heckendorn, Computer Science Department, University of Idaho
+#  Version 2: Apr 19, 2018
 #
 # KDTree simple nearest neighbor algorithm expanded to help people understand how it works
+# Version 2:
+#   a) some names changed to better explain their purpose
+#   b) a formal calling prototype more like my C++ code to clarify that best and bestex
+#        behave more like globals and get better throughout the execution as explained in
+#        class.
+#   c) a bug fix that improves performance.   The code worked before but not quite as
+#        intended.  In making the first explanatory copy I left a test out in the leaf node
+#        See comment in leaf.
 #
 from math import *
-from kdData import *
+from kdData2 import *
 
-print(Features)   # a list features
+print(FeaturesList)   # a list features
 print(Data)       # a list of dictionaries.  One dictionary for each data sample.
 
 # GLOBALS
@@ -24,26 +33,26 @@ def compare(dict) :
 
 def distMax(a, b) :
     sum = 0
-    for featureNum in range(0, len(Features)-1) :
-        sum = max(sum, abs(a[Features[featureNum]]-b[Features[featureNum]]))
+    for featureNum in range(0, len(FeaturesList)-1) :
+        sum = max(sum, abs(a[FeaturesList[featureNum]]-b[FeaturesList[featureNum]]))
     return sum
 
 def dist3(a, b) :
     sum = 0
-    for featureNum in range(0, len(Features)-1) :
-        sum += abs(a[Features[featureNum]]-b[Features[featureNum]])**3
+    for featureNum in range(0, len(FeaturesList)-1) :
+        sum += abs(a[FeaturesList[featureNum]]-b[FeaturesList[featureNum]])**3
     return sum**(1/3)
 
 def dist2(a, b) :
     sum = 0
-    for featureNum in range(0, len(Features)-1) :
-        sum += (a[Features[featureNum]]-b[Features[featureNum]])**2
+    for featureNum in range(0, len(FeaturesList)-1) :
+        sum += (a[FeaturesList[featureNum]]-b[FeaturesList[featureNum]])**2
     return sqrt(sum)
 
 def dist(a, b) :
     sum = 0
-    for featureNum in range(0, len(Features)-1) :
-        sum += abs(a[Features[featureNum]]-b[Features[featureNum]])
+    for featureNum in range(0, len(FeaturesList)-1) :
+        sum += abs(a[FeaturesList[featureNum]]-b[FeaturesList[featureNum]])
     return sum
 
 
@@ -60,14 +69,15 @@ def kdBuild(featureNum, data) :
     global SortingFeature
 
     # sort on feature number featureNum
-    SortingFeature = Features[featureNum];
+    SortingFeature = FeaturesList[featureNum]    # set up the feature to sort on (see compare function)
     data.sort(key=compare)
 
     # what is the next featureNum including wrap around
-    nextFeatureNum = (featureNum + 1) % len(Features)
-    feature = Features[featureNum]
+    feature = FeaturesList[featureNum]
 
     # check the amount of data in this part of the tree
+    nextFeatureNum = (featureNum + 1) % (len(FeaturesList) - 1)  # don't include Ans feature
+
     length = len(data)
     # if only 1 then make it a leaf
     if length==1 :
@@ -83,65 +93,80 @@ def kdBuild(featureNum, data) :
                  kdBuild(nextFeatureNum, data[length//2+1:])]
                ]
 
+
 # using the given kdtree find the item that is closest to item
 def nearest(kdtree, ourDist, item) :
+    (best, bestex) = nearestAux(kdtree, ourDist, item, Infinity, None)
+    return bestex
+
+# best and bestex are passed in and returned as values of the function.
+# In a C++ version kdtre would be the kdtree Matrix, and best and bestex
+# could be passed as references as I did in my C++ code making them more like
+# globals.   This was not done neatly when I first translated the code to
+# my first explanatory version.
+def nearestAux(kdtree, ourDist, item, best, bestex) :
 
     # if this is a leaf
     if len(kdtree)==2 :   # this is a single node of feature + example
-        (feature, example) = kdtree
-        return (ourDist(item, example), example)  # return distance and example
+        (feature, splitPt) = kdtree
+        if ourDist(item, splitPt)<best :     # since passing in best, test if this pt is better!
+            print("BESTLEAF:", ourDist(item, splitPt), splitPt)
+            return (ourDist(item, splitPt), splitPt)  # return distance and example
+        else : 
+            return (best, bestex)
 
     # otherwise if this is a parent
     elif len(kdtree)==3 :
-        (feature, example, children) = kdtree   # tree split on feature in example
+        (feature, splitPt, children) = kdtree   # tree split on feature in example
 
         # which child do you search?  Which side of the split do you search?
-        if item[feature]<=example[feature] :
-            # try the lower half
-            best = Infinity      # the minimum
+        if item[feature]<=splitPt[feature] :
+            # try the LOWER HALF
 
             # try first child if it is there
             if 0<len(children) :
-                (best, bestex) = nearest(children[0], ourDist, item)
-                if abs(item[feature]-example[feature])>best :   # border too far away?  (assumes dist is Euclidean)
-                    return (best, bestex)                     # return child as a short cut
+                (best, bestex) = nearestAux(children[0], ourDist, item, best, bestex)
+                if abs(item[feature]-splitPt[feature])>best :   # border too far away?  (assume Euclidean dist)
+                    return (best, bestex)             # SHORT CUT
 
             # try parent
-            if ourDist(item, example)<best :
-                best = ourDist(item, example)
-                bestex = example
+            if ourDist(item, splitPt)<best :
+                best = ourDist(item, splitPt)
+                bestex = splitPt
+                print("BESTPARENT1:", ourDist(item, splitPt), splitPt)
                 if (best == 0) :
                     return (best, bestex)
 
             # try second child if it is there
             if 1<len(children) :
-                (d, e) = nearest(children[1], ourDist, item)
+                (d, e) = nearestAux(children[1], ourDist, item, best, bestex)
                 if d<best :
                     best = d
                     bestex = e
         else :
-            # try the upper half
-            best = Infinity      # the minimum
+            # try the UPPER HALF
 
             # try second child if it is there
             if 1<len(children) :
-                (best, bestex) = nearest(children[1], ourDist, item)
-                if abs(item[feature]-example[feature])>best :   # border too far away?  (assumes dist is Euclidean)
-                    return (best, bestex)                     # return child as a short cut
+                (best, bestex) = nearestAux(children[1], ourDist, item, best, bestex)
+                if abs(item[feature]-splitPt[feature])>best :   # border too far away?  (assume Euclidean dist)
+                    return (best, bestex)             # SHORT CUT
 
             # try parent
-            if ourDist(item, example)<best :
-                best = ourDist(item, example)
-                bestex = example
+            if ourDist(item, splitPt)<best :
+                best = ourDist(item, splitPt)
+                bestex = splitPt
+                print("BESTPARENT2:", ourDist(item, splitPt), splitPt)
                 if (best == 0) :
                     return (best, bestex)
 
             # try first child if it is there
             if 0<len(children) :
-                (d, e) = nearest(children[0], ourDist, item)
+                (d, e) = nearestAux(children[0], ourDist, item, best, bestex)
                 if d<best :
                     best = d
                     bestex = e
+ 
         return (best, bestex)
     else :
         print("ERROR(nearest): should never get here length of top list of kdtree is", len(kdtree))
@@ -164,7 +189,7 @@ def main() :
     tree = kdBuild(0, Data)
 
     count = 0
-    s = 10
+    s = 31
     c = {}
     for r in range(0, 256, s) :
         c["R"] = r
@@ -173,13 +198,12 @@ def main() :
             for b in range(0, 256, s) :
                 c["B"] = b
 
-                print("TEST:", c)
+                print("SOLVE:", c)
                 ans = nearest(tree, dist2, c)
                 ans2 = brute(Data, dist2, c)
-                print("ANS1:", ans[0]);
-                print(ans[1]);
+                print("ANS1:", ans);
                 print("ANS2:", ans2);
-                if (ans2 == ans[1]) : print("SAME")
+                if (ans2 == ans) : print("SAME")
                 else : print("DIFF")
                 print()
 
